@@ -1,11 +1,14 @@
-const expres = require('express');
+require('dotenv').config()
+const express = require('express');
 const bodyParser = require('body-parser');
 const {graphqlHTTP}  = require('express-graphql');
 const {buildSchema} = require('graphql');
+const mongoose = require('mongoose');
+const {Event} = require('./models/event')
 
-const app = expres();
+const app = express();
 const events = [];
-
+const {DATABASE_URL} = process.env
 app.use(bodyParser.json());
 
 // app.get('/', (req, res, next) => res.json({message: 'Welcome'}))
@@ -24,7 +27,7 @@ app.use('/graphql', graphqlHTTP({
         title: String!
         description: String!
         price: Float!
-        date: String!
+        date: String
     }
 
     type RootQuery {
@@ -41,27 +44,42 @@ app.use('/graphql', graphqlHTTP({
     }
  `),
  rootValue: {
-     events: () => {
-         return events;
+     events: async () => {
+         return await Event.find().exec();
      },
 
-     createEvent: (args) => {
-         const event = {
-             _id: Math.random().toString(),
-             title: args.eventInput.title,
-             description: args.eventInput.description,
-             price: args.eventInput.price,
-             date: args.eventInput.date
-         }
+     createEvent: async (args) => {
+        //  const event = {
+        //      _id: Math.random().toString(),
+        //      title: args.eventInput.title,
+        //      description: args.eventInput.description,
+        //      price: args.eventInput.price,
+        //      date: args.eventInput.date
+        //  }
         // console.log('Event added ', event);
         // console.log('args ', args)
 
-         events.push(event)
+        const event = new Event({
+            title: args.eventInput.title,
+             description: args.eventInput.description,
+             price: args.eventInput.price,
+             date: new Date(args.eventInput.date)
+        })
+
+         await event.save()
          return event
      }
  },
  graphiql: true
 }))
-app.listen(3000, () => {
-    console.log('Server running');
-})
+
+mongoose.connect(DATABASE_URL, 
+        { 
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        })
+        .then(app.listen(3000, () => {
+            console.log('Server running ');
+        }))
+        .catch(err => console.error(err));
+
